@@ -1,0 +1,16 @@
+[project]
+name = "gdrive-mcp"
+version = "0.3.0"
+description = "Google Drive MCP server for Claude - full read-write access to Drive, Docs, Sheets, Slides, and Apps Script"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]>=1.0.0",
+    "google-api-python-client>=2.100.0",
+    "google-auth-oauthlib>=1.2.0",
+    "google-auth-httplib2>=0.2.0",
+    "markdown>=3.5.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
