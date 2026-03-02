@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from googleapiclient.http import MediaInMemoryUpload
 
 from services import get_docs, get_drive
-from helpers import find_heading_end_index, find_text_indices, get_doc_plain_text
+from helpers import find_heading_end_index, find_heading_section_range, find_text_indices, get_doc_plain_text, hex_to_color
 
 
 def register(mcp):
@@ -144,6 +144,36 @@ def register(mcp):
             ge=1,
             le=6,
         )
+        underline: bool = Field(
+            default=False,
+            description="If true, the inserted text will be underlined.",
+        )
+        strikethrough: bool = Field(
+            default=False,
+            description="If true, the inserted text will have strikethrough.",
+        )
+        font_family: Optional[str] = Field(
+            default=None,
+            description="Font family for inserted text (e.g., 'Arial', 'Times New Roman', 'Courier New').",
+        )
+        font_size: Optional[int] = Field(
+            default=None,
+            description="Font size in points for inserted text.",
+            ge=1,
+            le=400,
+        )
+        text_color: Optional[str] = Field(
+            default=None,
+            description="Text color as hex (e.g., '#FF0000' for red).",
+        )
+        bg_color: Optional[str] = Field(
+            default=None,
+            description="Background/highlight color as hex (e.g., '#FFFF00' for yellow).",
+        )
+        link_url: Optional[str] = Field(
+            default=None,
+            description="URL to make the inserted text a hyperlink.",
+        )
 
     @mcp.tool(
         name="gdrive_insert_text",
@@ -159,7 +189,8 @@ def register(mcp):
         """Insert text at a specific location in a Google Doc.
 
         Can insert at the end, start, after a specific heading, or at a character index.
-        Supports bold, italic, and heading-level formatting on inserted text.
+        Supports rich formatting: bold, italic, underline, strikethrough, font family/size,
+        text color, background color, hyperlinks, and heading-level styling.
 
         For 'after_heading', provide the heading text — it does a case-insensitive
         partial match against all headings in the doc.
@@ -217,17 +248,38 @@ def register(mcp):
             }
         })
 
-        # Apply text styling (bold/italic)
-        if params.bold or params.italic:
-            style = {}
-            fields = []
-            if params.bold:
-                style["bold"] = True
-                fields.append("bold")
-            if params.italic:
-                style["italic"] = True
-                fields.append("italic")
+        # Apply text styling
+        style = {}
+        fields = []
+        if params.bold:
+            style["bold"] = True
+            fields.append("bold")
+        if params.italic:
+            style["italic"] = True
+            fields.append("italic")
+        if params.underline:
+            style["underline"] = True
+            fields.append("underline")
+        if params.strikethrough:
+            style["strikethrough"] = True
+            fields.append("strikethrough")
+        if params.font_family:
+            style["weightedFontFamily"] = {"fontFamily": params.font_family}
+            fields.append("weightedFontFamily")
+        if params.font_size:
+            style["fontSize"] = {"magnitude": params.font_size, "unit": "PT"}
+            fields.append("fontSize")
+        if params.text_color:
+            style["foregroundColor"] = {"color": {"rgbColor": hex_to_color(params.text_color)}}
+            fields.append("foregroundColor")
+        if params.bg_color:
+            style["backgroundColor"] = {"color": {"rgbColor": hex_to_color(params.bg_color)}}
+            fields.append("backgroundColor")
+        if params.link_url:
+            style["link"] = {"url": params.link_url}
+            fields.append("link")
 
+        if style:
             requests.append({
                 "updateTextStyle": {
                     "range": {
@@ -271,6 +323,20 @@ def register(mcp):
                 formatting.append("bold")
             if params.italic:
                 formatting.append("italic")
+            if params.underline:
+                formatting.append("underline")
+            if params.strikethrough:
+                formatting.append("strikethrough")
+            if params.font_family:
+                formatting.append(f"font: {params.font_family}")
+            if params.font_size:
+                formatting.append(f"{params.font_size}pt")
+            if params.text_color:
+                formatting.append(f"color: {params.text_color}")
+            if params.bg_color:
+                formatting.append(f"bg: {params.bg_color}")
+            if params.link_url:
+                formatting.append("linked")
             if params.heading_level:
                 formatting.append(f"heading {params.heading_level}")
             fmt_str = f" ({', '.join(formatting)})" if formatting else ""
@@ -771,3 +837,236 @@ def register(mcp):
 
         except Exception as e:
             return f"Error inserting table: {e}"
+
+    # ── Tool: Format Text ────────────────────────────────────────────────
+
+    class FormatTextTarget(str, Enum):
+        MATCH = "match"
+        RANGE = "range"
+        HEADING = "heading"
+
+    class FormatTextInput(BaseModel):
+        """Input for formatting existing text in a Google Doc."""
+        model_config = ConfigDict(str_strip_whitespace=True)
+
+        file_id: str = Field(..., description="The Google Drive file ID of the document.", min_length=1)
+        target: FormatTextTarget = Field(
+            ...,
+            description="How to select text: 'match' (find by text), 'range' (by character index), 'heading' (all content under a heading).",
+        )
+
+        # Match mode
+        match_text: Optional[str] = Field(
+            default=None,
+            description="Text to find in the document (required for target='match').",
+        )
+        match_occurrence: Optional[int] = Field(
+            default=None,
+            description="Which occurrence to format: None = all, 1 = first, -1 = last, N = Nth occurrence.",
+        )
+
+        # Range mode
+        start_index: Optional[int] = Field(default=None, description="Start character index (required for target='range').", ge=1)
+        end_index: Optional[int] = Field(default=None, description="End character index (required for target='range').", ge=2)
+
+        # Heading mode
+        heading_text: Optional[str] = Field(
+            default=None,
+            description="Heading text to find (case-insensitive partial match, required for target='heading').",
+        )
+
+        # Text formatting (all optional)
+        bold: Optional[bool] = Field(default=None, description="Set bold on/off.")
+        italic: Optional[bool] = Field(default=None, description="Set italic on/off.")
+        underline: Optional[bool] = Field(default=None, description="Set underline on/off.")
+        strikethrough: Optional[bool] = Field(default=None, description="Set strikethrough on/off.")
+        font_family: Optional[str] = Field(default=None, description="Font family (e.g., 'Arial', 'Georgia').")
+        font_size: Optional[int] = Field(default=None, description="Font size in points.", ge=1, le=400)
+        text_color: Optional[str] = Field(default=None, description="Text color as hex (e.g., '#FF0000').")
+        bg_color: Optional[str] = Field(default=None, description="Background/highlight color as hex.")
+        link_url: Optional[str] = Field(default=None, description="URL to set as hyperlink.")
+        remove_link: Optional[bool] = Field(default=None, description="If true, remove existing hyperlink from the text.")
+
+        # Paragraph formatting (all optional)
+        named_style: Optional[str] = Field(
+            default=None,
+            description="Paragraph style: 'HEADING_1' through 'HEADING_6', 'NORMAL_TEXT', 'TITLE', 'SUBTITLE'.",
+        )
+        alignment: Optional[str] = Field(
+            default=None,
+            description="Paragraph alignment: 'START', 'CENTER', 'END', 'JUSTIFIED'.",
+        )
+        line_spacing: Optional[float] = Field(
+            default=None,
+            description="Line spacing multiplier (1.0 = single, 1.5, 2.0 = double).",
+        )
+        indent_start: Optional[float] = Field(
+            default=None,
+            description="Left indent in points.",
+            ge=0,
+        )
+
+    @mcp.tool(
+        name="gdrive_format_text",
+        annotations={
+            "title": "Format Text in Google Doc",
+            "readOnlyHint": False,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    )
+    async def gdrive_format_text(params: FormatTextInput) -> str:
+        """Apply formatting to existing text in a Google Doc.
+
+        Three targeting modes:
+        - 'match': Find text by string match, format specific or all occurrences.
+        - 'range': Format text at specific character index range.
+        - 'heading': Format all content under a heading (until next heading of same or higher level).
+
+        Supports both text-level formatting (bold, italic, underline, font, colors, links)
+        and paragraph-level formatting (heading styles, alignment, spacing, indentation).
+
+        Args:
+            params: File ID, target selection, and formatting options.
+
+        Returns:
+            Confirmation of formatting applied.
+        """
+        try:
+            doc = get_docs().documents().get(documentId=params.file_id).execute()
+        except Exception as e:
+            return f"Error reading document: {e}"
+
+        # Determine target ranges
+        ranges = []
+
+        if params.target == FormatTextTarget.MATCH:
+            if not params.match_text:
+                return "Error: match_text is required when target='match'."
+            all_matches = find_text_indices(doc, params.match_text)
+            if not all_matches:
+                return f"Error: Text '{params.match_text}' not found in document."
+
+            if params.match_occurrence is None:
+                ranges = all_matches
+            elif params.match_occurrence == -1:
+                ranges = [all_matches[-1]]
+            elif 1 <= params.match_occurrence <= len(all_matches):
+                ranges = [all_matches[params.match_occurrence - 1]]
+            else:
+                return f"Error: Occurrence {params.match_occurrence} out of range (found {len(all_matches)} matches)."
+
+        elif params.target == FormatTextTarget.RANGE:
+            if params.start_index is None or params.end_index is None:
+                return "Error: start_index and end_index are required when target='range'."
+            ranges = [(params.start_index, params.end_index)]
+
+        elif params.target == FormatTextTarget.HEADING:
+            if not params.heading_text:
+                return "Error: heading_text is required when target='heading'."
+            section = find_heading_section_range(doc, params.heading_text)
+            if section is None:
+                return f"Error: Heading '{params.heading_text}' not found."
+            ranges = [section]
+
+        if not ranges:
+            return "Error: No text ranges identified for formatting."
+
+        # Build requests
+        requests = []
+        applied = []
+
+        # Text style
+        text_style = {}
+        text_fields = []
+
+        if params.bold is not None:
+            text_style["bold"] = params.bold
+            text_fields.append("bold")
+        if params.italic is not None:
+            text_style["italic"] = params.italic
+            text_fields.append("italic")
+        if params.underline is not None:
+            text_style["underline"] = params.underline
+            text_fields.append("underline")
+        if params.strikethrough is not None:
+            text_style["strikethrough"] = params.strikethrough
+            text_fields.append("strikethrough")
+        if params.font_family:
+            text_style["weightedFontFamily"] = {"fontFamily": params.font_family}
+            text_fields.append("weightedFontFamily")
+        if params.font_size:
+            text_style["fontSize"] = {"magnitude": params.font_size, "unit": "PT"}
+            text_fields.append("fontSize")
+        if params.text_color:
+            text_style["foregroundColor"] = {"color": {"rgbColor": hex_to_color(params.text_color)}}
+            text_fields.append("foregroundColor")
+        if params.bg_color:
+            text_style["backgroundColor"] = {"color": {"rgbColor": hex_to_color(params.bg_color)}}
+            text_fields.append("backgroundColor")
+        if params.link_url:
+            text_style["link"] = {"url": params.link_url}
+            text_fields.append("link")
+        if params.remove_link:
+            text_style["link"] = {}
+            text_fields.append("link")
+
+        if text_style:
+            for start, end in ranges:
+                requests.append({
+                    "updateTextStyle": {
+                        "range": {"startIndex": start, "endIndex": end},
+                        "textStyle": text_style,
+                        "fields": ",".join(text_fields),
+                    }
+                })
+            applied.append("text formatting")
+
+        # Paragraph style
+        para_style = {}
+        para_fields = []
+
+        if params.named_style:
+            para_style["namedStyleType"] = params.named_style
+            para_fields.append("namedStyleType")
+        if params.alignment:
+            para_style["alignment"] = params.alignment
+            para_fields.append("alignment")
+        if params.line_spacing:
+            para_style["lineSpacing"] = params.line_spacing * 100  # API uses percentage
+            para_fields.append("lineSpacing")
+        if params.indent_start is not None:
+            para_style["indentStart"] = {"magnitude": params.indent_start, "unit": "PT"}
+            para_fields.append("indentStart")
+
+        if para_style:
+            for start, end in ranges:
+                requests.append({
+                    "updateParagraphStyle": {
+                        "range": {"startIndex": start, "endIndex": end},
+                        "paragraphStyle": para_style,
+                        "fields": ",".join(para_fields),
+                    }
+                })
+            applied.append("paragraph formatting")
+
+        if not requests:
+            return "No formatting options specified."
+
+        try:
+            get_docs().documents().batchUpdate(
+                documentId=params.file_id,
+                body={"requests": requests},
+            ).execute()
+
+            target_desc = {
+                FormatTextTarget.MATCH: f"'{params.match_text}' ({len(ranges)} occurrence{'s' if len(ranges) != 1 else ''})",
+                FormatTextTarget.RANGE: f"index {params.start_index}-{params.end_index}",
+                FormatTextTarget.HEADING: f"section under '{params.heading_text}'",
+            }
+
+            return f"Applied {', '.join(applied)} to {target_desc[params.target]}."
+
+        except Exception as e:
+            return f"Error applying formatting: {e}"
