@@ -1,6 +1,6 @@
 """Tool modules for gdrive-mcp."""
 
-from . import drive, docs, sheets, slides, comments, scripts, management, gmail
+from . import drive, docs, sheets, slides, comments, scripts, management, gmail, calendar
 
 
 def register_all(mcp):
@@ -13,3 +13,4 @@ def register_all(mcp):
     scripts.register(mcp)
     management.register(mcp)
     gmail.register(mcp)
+    calendar.register(mcp)
