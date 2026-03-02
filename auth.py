@@ -22,13 +22,16 @@ CONFIG_DIR = Path(__file__).parent
 CREDENTIALS_FILE = CONFIG_DIR / "credentials.json"
 TOKEN_FILE = CONFIG_DIR / "token.json"
 
-# Scopes needed — full read-write access to Drive, Docs, and Sheets
+# Scopes needed — full access to Drive, Docs, Sheets, Gmail (read), Calendar, and Apps Script
 SCOPES = [
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/documents",
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/presentations",
     "https://www.googleapis.com/auth/script.projects",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/script.deployments",
 ]
 
 
