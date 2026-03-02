@@ -562,9 +562,10 @@ def register(mcp):
             if "T" not in time_max:
                 time_max += "T23:59:59Z"
 
-            for s in [time_min, time_max]:
-                if not s.endswith("Z") and "+" not in s and "-" not in s[10:]:
-                    s += "Z"
+            if not time_min.endswith("Z") and "+" not in time_min and "-" not in time_min[10:]:
+                time_min += "Z"
+            if not time_max.endswith("Z") and "+" not in time_max and "-" not in time_max[10:]:
+                time_max += "Z"
 
             body = {
                 "timeMin": time_min,

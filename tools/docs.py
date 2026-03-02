@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from googleapiclient.http import MediaInMemoryUpload
 
 from services import get_docs, get_drive
-from helpers import find_heading_end_index, find_heading_section_range, find_text_indices, get_doc_plain_text, hex_to_color
+from helpers import find_heading_end_index, find_heading_section_range, find_text_indices, hex_to_color
 
 
 def register(mcp):

@@ -213,7 +213,7 @@ def register(mcp):
         try:
             q = "mimeType='application/vnd.google-apps.script'"
             if params.query:
-                q += f" and name contains '{params.query}'"
+                q += f" and name contains '{params.query.replace(chr(39), chr(92)+chr(39))}'"
             if params.bound_to:
                 q += f" and '{params.bound_to}' in parents"
 

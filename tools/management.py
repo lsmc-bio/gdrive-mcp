@@ -7,7 +7,6 @@ from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 
 from services import get_drive
-from helpers import format_file_entry
 
 
 def register(mcp):
