@@ -11,6 +11,10 @@ dependencies = [
     "markdown>=3.5.0",
 ]
 
+[tool.setuptools]
+py-modules = ["server", "auth", "services", "helpers"]
+packages = ["tools"]
+
 [build-system]
 requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
