@@ -7,6 +7,17 @@ from typing import Optional, List
 from services import get_drive
 
 
+# ── Query escaping ───────────────────────────────────────────────────────────
+
+def escape_drive_query(text: str) -> str:
+    """Escape a string for use inside single-quoted Drive API query values.
+
+    The Drive API query language uses single quotes for string literals.
+    Both backslashes and single quotes must be escaped to prevent query breakage.
+    """
+    return text.replace("\\", "\\\\").replace("'", "\\'")
+
+
 # ── MIME type labels ─────────────────────────────────────────────────────────
 
 GOOGLE_MIME_LABELS = {

@@ -8,7 +8,7 @@ from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict
 
 from services import get_drive, get_docs, get_sheets
-from helpers import format_file_entry, drive_query_files, GOOGLE_MIME_LABELS
+from helpers import format_file_entry, drive_query_files, escape_drive_query, GOOGLE_MIME_LABELS
 
 
 def register(mcp):
@@ -135,10 +135,11 @@ def register(mcp):
 
         # Text search
         query_text = params.query
+        escaped = escape_drive_query(query_text)
         if params.search_content:
-            parts.append(f"fullText contains '{query_text.replace(chr(39), chr(92)+chr(39))}'")
+            parts.append(f"fullText contains '{escaped}'")
         else:
-            parts.append(f"name contains '{query_text.replace(chr(39), chr(92)+chr(39))}'")
+            parts.append(f"name contains '{escaped}'")
 
 
         # File type filter
@@ -179,7 +180,7 @@ def register(mcp):
         except Exception as e:
             # If fullText search fails (e.g., special chars), fall back to name search
             if params.search_content:
-                parts[0] = f"name contains '{query_text}'"
+                parts[0] = f"name contains '{escaped}'"
                 query = " and ".join(parts)
                 files = drive_query_files(query, params.max_results, "modifiedTime desc")
             else:

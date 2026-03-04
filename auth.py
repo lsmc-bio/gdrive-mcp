@@ -58,8 +58,9 @@ def get_credentials() -> Credentials:
             )
             creds = flow.run_local_server(port=3334)
 
-        # Save for next time
+        # Save for next time (restrict permissions — token contains refresh credentials)
         TOKEN_FILE.write_text(creds.to_json())
+        TOKEN_FILE.chmod(0o600)
 
     return creds
 

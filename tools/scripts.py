@@ -5,7 +5,7 @@ from typing import Optional, List
 
 from pydantic import BaseModel, Field, ConfigDict
 
-from helpers import drive_query_files
+from helpers import drive_query_files, escape_drive_query
 from services import get_scripts
 
 
@@ -32,6 +32,10 @@ def register(mcp):
             default=None,
             description="Parameters to pass to the function as a JSON array.",
         )
+        dev_mode: bool = Field(
+            default=True,
+            description="If true (default), runs the latest saved code (HEAD). If false, runs the most recently deployed version.",
+        )
 
     @mcp.tool(
         name="gdrive_run_script",
@@ -57,7 +61,7 @@ def register(mcp):
         """
         body = {
             "function": params.function_name,
-            "devMode": True,
+            "devMode": params.dev_mode,
         }
         if params.parameters:
             body["parameters"] = params.parameters
@@ -213,7 +217,7 @@ def register(mcp):
         try:
             q = "mimeType='application/vnd.google-apps.script'"
             if params.query:
-                q += f" and name contains '{params.query.replace(chr(39), chr(92)+chr(39))}'"
+                q += f" and name contains '{escape_drive_query(params.query)}'"
             if params.bound_to:
                 q += f" and '{params.bound_to}' in parents"
 

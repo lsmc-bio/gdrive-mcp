@@ -1,6 +1,7 @@
 """Drive file management tools for gdrive-mcp."""
 
 import os
+import re
 import tempfile
 from typing import Optional
 
@@ -205,7 +206,8 @@ def register(mcp):
 
             # Binary formats — save to temp file
             ext = fmt
-            tmp_path = os.path.join(tempfile.gettempdir(), f"{name}.{ext}")
+            safe_name = re.sub(r'[^\w\-.]', '_', name)
+            tmp_path = os.path.join(tempfile.gettempdir(), f"{safe_name}.{ext}")
             with open(tmp_path, "wb") as f:
                 f.write(content if isinstance(content, bytes) else content.encode("utf-8"))
 

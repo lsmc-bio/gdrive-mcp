@@ -1,8 +1,21 @@
 [project]
 name = "gdrive-mcp"
 version = "0.3.0"
-description = "Google Drive MCP server for Claude - full read-write access to Drive, Docs, Sheets, Slides, and Apps Script"
+description = "Google Workspace MCP server — full read-write access to Drive, Docs, Sheets, Slides, Gmail (read-only), Calendar, and Apps Script"
 requires-python = ">=3.10"
+license = "MIT"
+readme = "README.md"
+authors = [
+    { name = "Andrew Geller" },
+]
+keywords = ["mcp", "google-drive", "google-workspace", "claude", "llm"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
     "mcp[cli]>=1.0.0",
     "google-api-python-client>=2.100.0",
@@ -10,6 +23,9 @@ dependencies = [
     "google-auth-httplib2>=0.2.0",
     "markdown>=3.5.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/lsmc-bio/gdrive-mcp"
 
 [tool.setuptools]
 py-modules = ["server", "auth", "services", "helpers"]
