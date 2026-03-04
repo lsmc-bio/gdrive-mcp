@@ -1,8 +1,29 @@
 # gdrive-mcp
 
-A local MCP (Model Context Protocol) server that gives Claude full read-write access to Google Drive, Docs, Sheets, Slides, Gmail (read-only), Calendar, and Apps Script.
+A complete Google Workspace MCP server. One server, one OAuth flow, full read-write access to Drive, Docs, Sheets, Slides, Gmail, Calendar, and Apps Script.
 
-## Features
+## Why this exists
+
+Coding agents like Claude Code are increasingly capable of doing real work -- not just writing code, but managing projects, drafting documents, updating spreadsheets, scheduling meetings, and triaging email. The missing piece is access to the tools where that work actually lives. For most teams, that's Google Workspace.
+
+The MCP (Model Context Protocol) ecosystem has several Google integrations, but in practice they tend to be incomplete or frustrating to use. Some only cover Drive search and Docs reading. Others spread Google functionality across multiple servers that each require separate auth flows. Many lack write access entirely, or cover Docs but not Sheets, or Sheets but not Slides. The result is that you end up wiring together multiple partial solutions, each with its own OAuth config, and you still can't do half of what you need.
+
+gdrive-mcp takes a different approach: **one server that covers all of Google Workspace with real depth**. Not just "read a doc" but insert formatted text at a specific heading, manage sheet tabs, create slides with positioned text boxes, search Gmail threads, schedule calendar events with Google Meet links, and deploy Apps Script projects. The goal is that an agent using this server can do anything a human would do in Google Workspace, through the same APIs, with the same permissions.
+
+## What this unlocks
+
+When you give a coding agent access to Google Workspace, the workflows that become possible go well beyond "read me that doc":
+
+- **Project management from the terminal.** Ask your agent to check your calendar for the day, pull up the relevant project doc, update the status spreadsheet, and draft a summary -- all without leaving your editor.
+- **Document creation and editing.** Generate formatted Google Docs from code, data, or conversation. Insert tables, apply heading styles, add comments. Create slide decks with structured content and speaker notes.
+- **Spreadsheet automation.** Read data from sheets, write results back, format cells, manage tabs -- useful for anything from tracking deployments to updating shared team data.
+- **Email triage.** Search and read Gmail (read-only by design) to pull context into your workflow. Find that thread from last week, read the attachment list, batch-read a set of messages.
+- **Calendar integration.** Check availability, create events with attendees and Meet links, update or cancel meetings. Useful for agents that coordinate across people or schedule follow-ups.
+- **Apps Script as an escape hatch.** For anything the APIs don't cover directly, create and run Apps Script functions. Build custom automations, complex formatting, or chart generation -- and manage deployments programmatically.
+
+The common thread is that the agent operates on your real documents, in your real Drive, with your real permissions. Nothing is sandboxed or simulated.
+
+## Tools
 
 44 tools across 9 Google Workspace domains:
 
@@ -60,11 +81,11 @@ pip install -e .
 python auth.py
 ```
 
-This opens a browser window for Google sign-in. After authorizing, tokens are saved to `token.json` (automatically gitignored).
+This opens a browser window for Google sign-in. After authorizing, tokens are saved to `token.json` (automatically gitignored). The token refreshes automatically -- you only need to do this once.
 
-### 4. Configure Claude Code
+### 4. Configure your MCP client
 
-Add the server to your MCP configuration (`.mcp.json`):
+Add the server to your MCP configuration. For Claude Code, add to `.mcp.json`:
 
 ```json
 {
@@ -77,15 +98,15 @@ Add the server to your MCP configuration (`.mcp.json`):
 }
 ```
 
-Or run standalone:
+This works with any MCP-compatible client -- Claude Code, Claude Desktop, Cursor, Windsurf, or any agent framework that speaks MCP.
+
+To run standalone for testing:
 
 ```bash
 python server.py
 ```
 
 ## OAuth Scopes
-
-The server requests the following scopes:
 
 | Scope | Purpose |
 |---|---|
@@ -97,6 +118,8 @@ The server requests the following scopes:
 | `calendar` | Google Calendar full access |
 | `script.projects` | Apps Script project management |
 | `script.deployments` | Apps Script deployment management |
+
+Gmail is intentionally read-only. The server can search and read your email to pull context into workflows, but it cannot send, delete, or modify messages.
 
 ## Project Structure
 
@@ -120,12 +143,13 @@ gdrive-mcp/
     └── scripts.py     # Apps Script tools
 ```
 
-## Security Notes
+## Security
 
 - `credentials.json` and `token.json` are gitignored and must never be committed
 - `token.json` is created with `0600` permissions (owner-only read/write)
 - Gmail access is read-only by design
 - All Google API calls use the authenticated user's permissions -- the server cannot access files the user doesn't have access to
+- Drive API query inputs are escaped to prevent query injection
 
 ## License
 
